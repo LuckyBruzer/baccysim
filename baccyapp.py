@@ -1,6 +1,6 @@
 import random
 import streamlit as st
-import time
+import pandas as pd
 
 # Initialize the shoe (6 decks of cards with suits)
 def create_shoe():
@@ -32,7 +32,7 @@ def determine_winner(player_total, banker_total):
         return "Tie"
 
 # Baccarat game logic
-def play_round(shoe):
+def play_round(shoe, history, big_road):
     player_hand = []
     banker_hand = []
 
@@ -49,32 +49,46 @@ def play_round(shoe):
 
     # Check for natural win
     if player_total in [8, 9] or banker_total in [8, 9]:
-        return player_hand, banker_hand, player_total, banker_total
+        winner = determine_winner(player_total, banker_total)
+    else:
+        # Player third card rule
+        if player_total <= 5:
+            player_hand.append(deal_card(shoe))
+            player_total = calculate_total(player_hand)
 
-    # Player third card rule
-    if player_total <= 5:
-        player_hand.append(deal_card(shoe))
-        player_total = calculate_total(player_hand)
+        # Banker third card rule
+        if banker_total <= 2:
+            banker_hand.append(deal_card(shoe))
+        elif banker_total == 3 and (len(player_hand) < 3 or player_hand[2]["rank"] != 8):
+            banker_hand.append(deal_card(shoe))
+        elif banker_total == 4 and (len(player_hand) < 3 or 2 <= player_hand[2]["rank"] <= 7):
+            banker_hand.append(deal_card(shoe))
+        elif banker_total == 5 and (len(player_hand) < 3 or 4 <= player_hand[2]["rank"] <= 7):
+            banker_hand.append(deal_card(shoe))
+        elif banker_total == 6 and (len(player_hand) < 3 or player_hand[2]["rank"] in [6, 7]):
+            banker_hand.append(deal_card(shoe))
 
-    # Banker third card rule
-    if banker_total <= 2:
-        banker_hand.append(deal_card(shoe))
-    elif banker_total == 3 and (len(player_hand) < 3 or player_hand[2]["rank"] != 8):
-        banker_hand.append(deal_card(shoe))
-    elif banker_total == 4 and (len(player_hand) < 3 or 2 <= player_hand[2]["rank"] <= 7):
-        banker_hand.append(deal_card(shoe))
-    elif banker_total == 5 and (len(player_hand) < 3 or 4 <= player_hand[2]["rank"] <= 7):
-        banker_hand.append(deal_card(shoe))
-    elif banker_total == 6 and (len(player_hand) < 3 or player_hand[2]["rank"] in [6, 7]):
-        banker_hand.append(deal_card(shoe))
+        banker_total = calculate_total(banker_hand)
 
-    banker_total = calculate_total(banker_hand)
-    return player_hand, banker_hand, player_total, banker_total
+    winner = determine_winner(player_total, banker_total)
+
+    # Update history
+    history.append({"Player": player_total, "Banker": banker_total, "Winner": winner})
+
+    # Update Big Road
+    if len(big_road) == 0 or winner != big_road[-1]["Winner"]:
+        big_road.append({"Winner": winner, "Column": len(big_road) + 1, "Row": 1})
+    else:
+        big_road[-1]["Row"] += 1
+
+    return player_hand, banker_hand, player_total, banker_total, history, big_road
 
 # App initialization
-st.set_page_config(page_title="Casino-Style Baccarat", layout="wide")
+st.set_page_config(page_title="Binker Baccarat", layout="wide")
 shoe = create_shoe()
 bankroll = 1000
+history = []  # Store past hands
+big_road = []  # Store Big Road data
 
 # Styling
 st.markdown(
@@ -88,26 +102,38 @@ st.markdown(
         color: white;
         background-color: #b30000;
         border: none;
-        font-size: 16px;
-        padding: 10px 20px;
+        font-size: 20px;
+        padding: 15px 30px;
     }
     .stButton>button:hover {
         background-color: #ff4d4d;
+    }
+    h1 {
+        font-family: 'Courier New', monospace;
+        color: gold;
+        text-align: center;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Game layout
-st.markdown(f"<h1 style='text-align: center; color: gold;'>Welcome to Casino-Style Baccarat</h1>", unsafe_allow_html=True)
-st.markdown(f"<h3 style='text-align: center; color: white;'>Your Bankroll: ${bankroll}</h3>", unsafe_allow_html=True)
+# Header
+st.markdown("<h1>Binker Baccarat</h1>", unsafe_allow_html=True)
 
+# Sidebar for bankroll and history toggle
+with st.sidebar:
+    st.header("Game Settings")
+    st.markdown(f"### Bankroll: ${bankroll}")
+    show_history = st.checkbox("Show Past Hands")
+    show_big_road = st.checkbox("Show Big Road")
+
+# Bet and deal section
 bet_type = st.radio("Place Your Bet:", ["Player", "Banker", "Tie"], horizontal=True)
 bet_amount = st.slider("Bet Amount:", min_value=10, max_value=bankroll, step=10)
 
 if st.button("Deal"):
-    player_hand, banker_hand, player_total, banker_total = play_round(shoe)
+    player_hand, banker_hand, player_total, banker_total, history, big_road = play_round(shoe, history, big_road)
 
     # Determine the winner
     winner = "Player" if player_total > banker_total else "Banker" if banker_total > player_total else "Tie"
@@ -129,3 +155,17 @@ if st.button("Deal"):
         st.error(f"You lost ${bet_amount}!")
 
     st.markdown(f"<h3 style='text-align: center; color: white;'>Updated Bankroll: ${bankroll}</h3>", unsafe_allow_html=True)
+
+# Display past hands if toggled
+if show_history and history:
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<h3>Past Hands</h3>", unsafe_allow_html=True)
+    for i, hand in enumerate(reversed(history), 1):
+        st.markdown(f"**Round {i}:** Player Total: {hand['Player']}, Banker Total: {hand['Banker']}, Winner: {hand['Winner']}")
+
+# Display Big Road if toggled
+if show_big_road and big_road:
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<h3>Big Road</h3>", unsafe_allow_html=True)
+    big_road_df = pd.DataFrame(big_road)
+    st.dataframe(big_road_df)
