@@ -99,10 +99,29 @@ st.markdown(
     .stButton>button:hover {
         background-color: #ff4d4d;
     }
+    .stSlider {
+        margin-left: 10px; /* Add padding to slider */
+    }
     h1 {
         font-family: 'Courier New', monospace;
         color: gold;
         text-align: center;
+    }
+    .big-road-cell {
+        text-align: center;
+        font-weight: bold;
+        color: white;
+        padding: 5px;
+        margin: 2px;
+    }
+    .big-road-cell.Player {
+        background-color: blue;
+    }
+    .big-road-cell.Banker {
+        background-color: red;
+    }
+    .big-road-cell.Tie {
+        background-color: green;
     }
     </style>
     """,
@@ -138,10 +157,10 @@ if st.button("Deal"):
 
     # Display results
     st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown(f"<h3 style='text-align: center;'>Results</h3>", unsafe_allow_html=True)
-    st.markdown(f"<b>Player Hand:</b> {', '.join(format_cards(player_hand))} | Total: {player_total}")
-    st.markdown(f"<b>Banker Hand:</b> {', '.join(format_cards(banker_hand))} | Total: {banker_total}")
-    st.markdown(f"<b>Winner:</b> {winner}")
+    st.markdown(f"### Results")
+    st.markdown(f"**Player Hand:** {', '.join(format_cards(player_hand))} | Total: {player_total}")
+    st.markdown(f"**Banker Hand:** {', '.join(format_cards(banker_hand))} | Total: {banker_total}")
+    st.markdown(f"**Winner:** {winner}")
 
     # Update bankroll
     if winner == bet_type:
@@ -152,18 +171,20 @@ if st.button("Deal"):
         st.session_state.bankroll -= bet_amount
         st.error(f"You lost ${bet_amount}!")
 
-    st.markdown(f"<h3 style='text-align: center; color: white;'>Updated Bankroll: ${st.session_state.bankroll}</h3>", unsafe_allow_html=True)
+    st.markdown(f"### Updated Bankroll: ${st.session_state.bankroll}")
 
 # Display past hands if toggled
 if show_history and st.session_state.history:
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("<h3>Past Hands</h3>", unsafe_allow_html=True)
+    st.markdown("<hr>")
+    st.markdown("### Past Hands")
     for i, hand in enumerate(reversed(st.session_state.history), 1):
         st.markdown(f"**Round {i}:** Player Total: {hand['Player']}, Banker Total: {hand['Banker']}, Winner: {hand['Winner']}")
 
 # Display Big Road if toggled
 if show_big_road and st.session_state.big_road:
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("<h3>Big Road</h3>", unsafe_allow_html=True)
-    big_road_df = pd.DataFrame(st.session_state.big_road)
-    st.dataframe(big_road_df)
+    st.markdown("<hr>")
+    st.markdown("### Big Road")
+    road_html = ""
+    for entry in st.session_state.big_road:
+        road_html += f"<div class='big-road-cell {entry['Winner']}'>{entry['Winner']}</div>"
+    st.markdown(f"<div style='display: flex; flex-wrap: wrap;'>{road_html}</div>", unsafe_allow_html=True)
